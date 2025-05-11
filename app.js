@@ -5,12 +5,17 @@ const { StringDecoder } = require('string_decoder');
 const Event = require('./src/models/Event');
 require('dotenv').config();
 
+const PORT = process.env.PORT || 5000;
 
-mongoose.connect('mongodb://localhost:27017/eventos-js', { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log('Connected to MongoDB'))
-    .catch((err) => console.error('MongoDB connection error:', err));
+// Conectar a MongoDB Atlas
+mongoose.connect(process.env.MONGO_URI, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+    })
+    .then(() => console.log('Conectado a MongoDB Atlas'))
+    .catch((err) => console.error('Error de conexión:', err));
 
-
+// Crear servidor HTTP
 const server = http.createServer((req, res) => {
     const decoder = new StringDecoder('utf-8');
     let buffer = '';
@@ -23,37 +28,42 @@ const server = http.createServer((req, res) => {
         buffer += decoder.end();
         res.setHeader('Content-Type', 'application/json');
 
-
+        // GET todos los eventos
         if (req.method === 'GET' && req.url === '/api/events') {
             Event.find()
                 .then((events) => {
                     res.writeHead(200);
                     res.end(JSON.stringify(events));
                 })
-                .catch((error) => {
+                .catch((err) => {
                     res.writeHead(500);
-                    res.end(JSON.stringify({ error: 'Error fetching events' }));
+                    res.end(JSON.stringify({ error: 'Error al obtener eventos' }));
                 });
-        } else if (req.method === 'POST' && req.url === '/api/events') {
-            const newEvent = new Event(JSON.parse(buffer));
+        }
+
+        // POST nuevo evento
+        else if (req.method === 'POST' && req.url === '/api/events') {
+            const data = JSON.parse(buffer);
+            const newEvent = new Event(data);
             newEvent.save()
                 .then((event) => {
                     res.writeHead(201);
                     res.end(JSON.stringify(event));
                 })
-                .catch((error) => {
-                    res.writeHead(500);
-                    res.end(JSON.stringify({ error: 'Error creating event' }));
+                .catch((err) => {
+                    res.writeHead(400);
+                    res.end(JSON.stringify({ error: 'Error al crear evento' }));
                 });
-        } else {
+        }
+
+        // Ruta no encontrada
+        else {
             res.writeHead(404);
-            res.end(JSON.stringify({ message: 'Route not found' }));
+            res.end(JSON.stringify({ message: 'Ruta no encontrada' }));
         }
     });
 });
 
-
-const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`Servidor corriendo en puerto ${PORT}`);
 });
